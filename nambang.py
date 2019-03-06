@@ -2,6 +2,13 @@ import requests
 from bs4 import BeautifulSoup
 import sqlite3
 
+def getHarga(txt):
+    tmp =''
+    for i in txt:
+        if i.isdigit():
+            tmp += i
+    return int(tmp)
+
 def crawl (src):
     '''
         Function ini berguna untuk web crawling
@@ -33,7 +40,7 @@ def crawl (src):
         else :
             pengarang = kategori = ''
         
-        harga = buku.find(class_='product-price').getText()
+        harga = getHarga(buku.find(class_='product-price').getText())
 
         # Insert hasil crawl ke dalam database SQLite
         conn.execute("INSERT INTO BUKU \
@@ -60,8 +67,8 @@ def crawl (src):
 
 #Deklarasi SQLite
 conn = sqlite3.connect('test.db')
-choice = input("Apakah Anda ingin menggunakan data sebelumnya? Y/T").upper()
-if choice != "Y":
+choice = input("Perbarui data? Y/T ").upper()
+if choice == "Y":
     conn.execute('drop table if exists BUKU')
     conn.execute('''CREATE TABLE BUKU
              (JUDUL          TEXT     NOT NULL,
@@ -78,13 +85,48 @@ if choice != "Y":
 
 
 # Tes isi dari database
-choice = input("Tampilkan data? Y/N").upper()
-if choice != "Y":
+choice = input("Tampilkan data? Y/N ").upper()
+if choice == "Y":
     cursor = conn.execute("SELECT * from BUKU")
     h = ('Judul', 'pengarang', 'kategori', 'harga')
     print(h)
     for row in cursor:
         print(row)
+
+
+#Pre prosesing
+'''
+Ini tugas?
+
+Tokenisasi = > memisahkan kata-kata dalam satu kalimat atau documen
+Filter/stopword => menghilangkan kata tidka penting atau kata sambung dlm document
+Steaming => menjadikan kata tsb menjadi kata dasar
+VSM => membentuk kata tsb menjadi vektor space model
+'''
+# Note
+'''
+if banyak ciri :
+    semakin lama komputasi;
+    then:
+        gunakan reduksi dimensi. (seleksi fitur)
+        like PCA (fak)(kata dasar ilang, jadi PCA), or seleksi fitur (msih menggunakan kata dasar)
+
+note, library 'sastrawi' untuk, well, entahlah
+'''
+
+# Catatan untuk skripsi
+'''
+Anu, untuk pembuktian metode yg dipilih, bisa dibandingkan dengan akurasi
+'''
+
+#Next project
+'''
+Anu....
+Untuk data ini, bisa dipake untuk rekomendasi buku terkait?
+Atau untuk apa ya?
+Type?
+Entah
+Yang jelas ntar judulnya dijadiin ke tokenisasi dst.'''
 
 #--------------#
 #    update    #
@@ -99,7 +141,7 @@ def preprosesing(txt):
     stopword = SWfactory.create_stop_word_remover()
 
     stop = stopword.remove(txt)
-    print (stop)
+    #print (stop)
 
 
     #Stemming/Kata dasar
@@ -131,7 +173,9 @@ def add_row_VSM(d):
             VSM[j].append(0)
         VSM[-1].append(d.get(i))
 
+print("Please Wait. Building VSM...")
 cursor = conn.execute("SELECT * from BUKU")
+cursor = cursor.fetchall()
 pertama = True
 for row in cursor:
     txt = row[0]
@@ -145,4 +189,15 @@ for row in cursor:
             VSM[1].append(d[key])
     else:
         add_row_VSM(d)
+    VSM[-1].append(row[2])
+    VSM[-1].append(row[3])
+    
+import numpy as np
+records = np.rec.fromarrays(VSM, names=('keys', 'data'))
+print (records)
+import csv
 
+with open('tableview.csv', mode='w') as tbl:
+    tbl_writer = csv.writer(tbl, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    for row in VSM:
+        tbl_writer.writerow(row)
