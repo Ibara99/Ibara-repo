@@ -1,140 +1,54 @@
+# For crawling purpose
 import requests
 from bs4 import BeautifulSoup
+# For db purpose
 import sqlite3
-
-def getHarga(txt):
-    tmp =''
-    for i in txt:
-        if i.isdigit():
-            tmp += i
-    return int(tmp)
-
-def crawl (src):
-    '''
-        Function ini berguna untuk web crawling
-        src = (string) berupa url web yang akan di crawl
-    '''
-    # Download html dari web
-    print('Downloading page...')
-    page = requests.get(src)
-
-    # Mengubah html ke object beautiful soup
-    soup = BeautifulSoup(page.content, 'html.parser')
-
-    # Menyempitkan area pencarian, agar lebih akurat.
-    content = soup.find(class_='soft-gray-content')
-
-    # Mengambil semua barang yang dijual
-    producs = content.findAll(class_='col-md-6 col-sm-6')
-
-    #lalu diekstrak satu per satu
-    for buku in producs:
-        judul = list(buku.find(class_='product-name').children)[1].getText()
-
-        # Cek apakah buku tsb memiliki keterangan (penulis, kategori) atau tidak, 
-        keterangan = buku.find(class_='text-muted')
-        if keterangan != None:
-            links = keterangan.findAll('a')
-            pengarang = links[0].getText()
-            kategori = links[1].getText()
-        else :
-            pengarang = kategori = ''
-        
-        harga = getHarga(buku.find(class_='product-price').getText())
-
-        # Insert hasil crawl ke dalam database SQLite
-        conn.execute("INSERT INTO BUKU \
-                    VALUES ('%s', '%s', '%s', '%s')" %(judul, pengarang, kategori, harga));
-
-    # Cek apakah ada page selanjutnya, jika ada maka lakukan rekursi
-    pagination = content.find(class_='pagination')
-    pages = pagination.findAll('a')
-    # cek tombol terakhir,
-    #jika tombol terakhir adalah next, link yang diambil dari tombol terakhir
-    if pages[-1].has_attr('rel'):
-        src = pages[-1]['href']
-        crawl(src)
-    #jika tombol next ada di ke dua dari kanan, link yang diambil dari tombol tsb
-    # Karena bisa aja tombol terakhir berupa <last page>
-    elif pages[-2].has_attr('rel') :
-        src = pages[-2]['href']
-        crawl(src)
-    #jika tidak ada tombol next maka rekursi selesai
-
-#-------------------------------------
-# MAIN PROGRAM
-#-------------------------------------
-
-#Deklarasi SQLite
-conn = sqlite3.connect('test.db')
-choice = input("Perbarui data? Y/T ").upper()
-if choice == "Y":
-    conn.execute('drop table if exists BUKU')
-    conn.execute('''CREATE TABLE BUKU
-             (JUDUL          TEXT     NOT NULL,
-             PENGARANG       TEXT     NOT NULL,
-             KATEGORI        TEXT     NOT NULL,
-             HARGA           TEXT     NOT NULL);''')
-
-    # Deklarasi URL Web
-    #src = "http://bukurepublika.id/page/detail/58/Best-Seller"
-    src = 'http://bukurepublika.id/page/detail/59/Terbaru'
-
-    crawl(src)
-    conn.commit()
-
-
-# Tes isi dari database
-choice = input("Tampilkan data? Y/N ").upper()
-if choice == "Y":
-    cursor = conn.execute("SELECT * from BUKU")
-    h = ('Judul', 'pengarang', 'kategori', 'harga')
-    print(h)
-    for row in cursor:
-        print(row)
-
-
-#Pre prosesing
-'''
-Ini tugas?
-
-Tokenisasi = > memisahkan kata-kata dalam satu kalimat atau documen
-Filter/stopword => menghilangkan kata tidka penting atau kata sambung dlm document
-Steaming => menjadikan kata tsb menjadi kata dasar
-VSM => membentuk kata tsb menjadi vektor space model
-'''
-# Note
-'''
-if banyak ciri :
-    semakin lama komputasi;
-    then:
-        gunakan reduksi dimensi. (seleksi fitur)
-        like PCA (fak)(kata dasar ilang, jadi PCA), or seleksi fitur (msih menggunakan kata dasar)
-
-note, library 'sastrawi' untuk, well, entahlah
-'''
-
-# Catatan untuk skripsi
-'''
-Anu, untuk pembuktian metode yg dipilih, bisa dibandingkan dengan akurasi
-'''
-
-#Next project
-'''
-Anu....
-Untuk data ini, bisa dipake untuk rekomendasi buku terkait?
-Atau untuk apa ya?
-Type?
-Entah
-Yang jelas ntar judulnya dijadiin ke tokenisasi dst.'''
-
-#--------------#
-#    update    #
-#--------------#
-
+# For text mining purpose
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
+def crawl(src):
+    global c
+    try :
+        page = requests.get(src)
+
+        # Mengubah html ke object beautiful soup
+        soup = BeautifulSoup(page.content, 'html.parser')
+
+        # get all link on page
+        links = soup.findAll(class_='gray button')
+        pg = soup.findAll(class_='pag_button')
+        numPages = list()
+        for i in pg:    numPages.append(i.getText())
+        # access on each page
+        for each_link in links:
+            print ('Proses : %.2f' %((c/150)*100) + '%'); c+=0.2
+            src = each_link['href']
+            page = requests.get(src)
+            soup = BeautifulSoup(page.content, 'html.parser')
+
+            konten = soup.find(class_='items list_style')
+            konten = konten.find('li')
+
+            judul = konten.find(class_='title').getText()
+
+            detil = konten.findAll('span')
+            penulis = detil[0].getText()[10:]
+            dospem1 = detil[1].getText()[21:]
+            dospem2 = detil[2].getText()[21:]
+
+            abstracksi = konten.findAll('p')
+            absInd = abstracksi[0].getText()
+            absEng = abstracksi[1].getText()
+
+            conn.execute("INSERT INTO PAPER \
+                            VALUES (?, ?, ?, ?, ?, ?)", (judul, penulis, dospem1, dospem2, absInd, absEng));
+        conn.commit()
+        src = pg[numPages.index('>')]['href']
+        crawl(src)
+    except ValueError:
+        print('Download selesai')
+        
 def preprosesing(txt):
     # Menghilangkan Kata tidak penting
     SWfactory = StopWordRemoverFactory()
@@ -153,6 +67,9 @@ def preprosesing(txt):
 
 #VSM
 def countWord(txt):
+    '''
+        Fungsi ini digunakan untuk menghitung setiap kata pada satu string
+    '''
     d = dict()
     for i  in txt.split():
         if d.get(i) == None:
@@ -160,25 +77,49 @@ def countWord(txt):
     return d
 
 def add_row_VSM(d):
+    '''
+        Fungsi ini digunakan untuk membangun VSM
+    '''
+    #init baris baru
     VSM.append([])
+    # memasukkan kata berdasarkan kata yang telah ditemukan sebelumnya
     for i in VSM[0]:
         if d.get(i) == None:
             VSM[-1].append(0)
         else :
             VSM[-1].append(d.pop(i));
-		
+
+    # memasukkan kata baru 
     for i in d:
         VSM[0].append(i)
         for j in range(1, len(VSM)-1):
-            VSM[j].append(0)
+            VSM[j].insert(-2,0)
         VSM[-1].append(d.get(i))
 
-print("Please Wait. Building VSM...")
-cursor = conn.execute("SELECT * from BUKU")
+conn = sqlite3.connect('test.db')
+c = 1
+src = 'https://pta.trunojoyo.ac.id/c_search/byprod/10/'
+choice = input("Update data? Y/N").lower()
+if choice == 'y':
+    conn.execute('drop table if exists PAPER')
+    conn.execute('''CREATE TABLE PAPER
+                 (JUDUL          TEXT     NOT NULL,
+                 PENULIS         TEXT     NOT NULL,
+                 DOSPEM1         TEXT     NOT NULL,
+                 DOSPEM2         TEXT     NOT NULL,
+                 ABSTRAK_INDO    TEXT     NOT NULL,
+                 ABSTRAK_ENG     TEXT     NOT NULL);''')
+    crawl(src)
+    conn.execute("DELETE FROM paper WHERE ABSTRAK_INDO=''")
+    conn.commit()
+
+print("Building VSM...")
+cursor = conn.execute("SELECT * from PAPER")
 cursor = cursor.fetchall()
+cursor = cursor[:10]
 pertama = True
 for row in cursor:
-    txt = row[0]
+    txt = row[-2]
     cleaned = preprosesing(txt)
     d = countWord(cleaned)
     if pertama:
@@ -189,15 +130,22 @@ for row in cursor:
             VSM[1].append(d[key])
     else:
         add_row_VSM(d)
-    VSM[-1].append(row[2])
-    VSM[-1].append(row[3])
     
-import numpy as np
-records = np.rec.fromarrays(VSM, names=('keys', 'data'))
-print (records)
-import csv
-
-with open('tableview.csv', mode='w') as tbl:
+with open('bow.csv', mode='w') as tbl:
     tbl_writer = csv.writer(tbl, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     for row in VSM:
         tbl_writer.writerow(row)
+
+'''
+    A little tips for you dude.
+    Bikin VSM pake sklearn. Cek e book dari pak mul, bab 4, bag of word
+
+    yg belum:
+    2. bikin TF IDF
+    4. minggu depan mungkin bicarain ttg seleksi fitur
+    5. Modelling : clustering
+    6. Perbaiki Stemmingnya anjir. Di corpus.
+    
+    Other note:
+    Nama penulis dsb belum ditambahkan ke matrix. Tapi itu bisa nanti-nanti.
+'''
