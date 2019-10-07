@@ -1,0 +1,62 @@
+*{
+	font-family:comic sans ms, arial;
+	margin:auto;
+}
+table, td, th{
+	border: 1px black solid;
+}
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #111;
+}
+
+li {
+    float: left;
+}
+li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+	margin:5px;
+    text-decoration: none;
+}
+
+li a:hover {
+    background-color: #333;
+}
+.header, .footer{
+	margin-top:10px;
+	margin-left:50px;
+	margin-right:50px;
+	background-color:#0A4FFF;
+	float:center;
+	text-align:center;
+	clear:both;
+}
+.bulan1, .bulan2, .bulan3,
+.bulan4, .bulan5, .bulan6,
+.bulan7, .bulan8, .bulan9,
+.bulan10, .bulan11, .bulan12{
+	padding : 10px;
+	height:auto;
+	width:31.7%;
+	float: left;
+	text-align:center;
+}
+.content{
+	margin-left:50px;
+	margin-right:50px;
+	background-color:white;
+}
+.holiday{
+	margin-right : 75px;
+	margin-left : 75px;
+	margin-top : 5px;
+	margin-bottom : 15px;
+	clear:both;
+	background-color:#F0F0F0;
+}
